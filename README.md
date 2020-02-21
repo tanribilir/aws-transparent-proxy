@@ -14,7 +14,9 @@ This template differs from the original AWS template in that the original one su
 # Manual step
 
 For clients to connect to internet through a transparent proxy, their default route must be the transparent proxy server. To achieve this, a manual step is required. After the stack completes, the route table it creates must be modified with a default route pointing to ENI of the proxy server.
+
 ![](images/cfn_out_route_table.png)
+
 ![](images/vpc_subnet_default_route.png)
 
 # Usage
