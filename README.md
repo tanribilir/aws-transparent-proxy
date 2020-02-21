@@ -1,6 +1,6 @@
 # Transparent Squid Proxy in AWS (into existing VPC)
 
-Originally published by AWS[https://aws.amazon.com/blogs/security/how-to-add-dns-filtering-to-your-nat-instance-with-squid/].
+Originally [published by AWS](https://aws.amazon.com/blogs/security/how-to-add-dns-filtering-to-your-nat-instance-with-squid/).
 
 For security and compliance purposes, you might have to filter the requests initiated by these instances (also known as “egress filtering”). Using iptables rules, you could restrict outbound traffic with your NAT instance based on a predefined destination port or IP address. However, you might need to enforce more complex security policies, such as allowing requests to AWS endpoints only, or blocking fraudulent websites, which you can’t easily achieve by using iptables rules.
 
@@ -16,7 +16,7 @@ Also, it modifies squid.conf file based on the paremeters set for "SSL Proxy Por
 
 # Usage
 
-Create a new stack with CloudFormation,
+Create a new stack with CloudFormation.
 
 **DO NOT** forget to set your default route to point to the interface of your Squid instance.
 
