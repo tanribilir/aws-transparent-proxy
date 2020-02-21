@@ -17,7 +17,7 @@ For clients to connect to internet through a transparent proxy, their default ro
 
 ![](images/cfn_out_route_table.png)
 
-![](images/vpc_subnet_default_route.png)
+![](images/subnet_default_route.png)
 
 # Usage
 
