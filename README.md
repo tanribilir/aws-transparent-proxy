@@ -9,7 +9,7 @@ This CloudFormation template gives an example of how to use Squid, a leading ope
 
 # Difference
 
-This template differs from the original AWS template in that the original one suggests iptables/NAT to forward incoming traffic on tcp ports 80 and 443 to tcp ports 3128 and 3129 respectively. My template uses Linux **setcap** command to allow Squid listen on tcp ports 80 and 443. However it is still possible to change default ports if you want as it uses template parameters to set these values in the configuration files.
+This template differs from the original AWS template in that the original one suggests iptables/NAT to forward incoming traffic on tcp ports 80 and 443 to tcp ports 3128 and 3129 respectively. My template uses Linux **setcap** command to allow Squid to listen on tcp ports 80 and 443. However it is still possible to change default ports if you want as it uses template parameters to set these values in the configuration files.
 
 Also, it modifies squid.conf file based on the paremeters set for "SSL Proxy Port", "HTTP Proxy Port" and "CIDR Block Allowed".
 
