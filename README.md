@@ -6,6 +6,7 @@ For security and compliance purposes, you might have to filter the requests init
 
 This CloudFormation template gives an example of how to use Squid, a leading open-source proxy, to implement a “transparent proxy” that can restrict both HTTP and HTTPS outbound traffic to a given set of Internet domains, while being fully transparent for instances in the private subnet.
 
+![](images/TransparentProxyHLA.png)
 
 # Difference
 
