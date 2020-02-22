@@ -28,7 +28,6 @@ Parameters:
   KeyName:
     Type: AWS::EC2::KeyPair::KeyName
     Description: Name of RSA key for EC2 access for testing and troubleshooting.
-    # Default: 'KeyPair1'
 
   VpcId: 
     Description: VPC ID Where the Proxy will be installed
