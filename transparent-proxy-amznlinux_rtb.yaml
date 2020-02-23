@@ -41,11 +41,6 @@ Parameters:
     Description: Private SubnetIDs to be associated with route-table
     Type: AWS::EC2::Subnet::Id
 
-  vpcInternetGW:
-    Description: Internet Gateway ID of the relavent VPC
-    Type: String
-    Default: igw-xxxxxxx
-  
   InstanceType:
     Description: WebServer EC2 instance type
     Type: String
@@ -168,6 +163,16 @@ Resources:
             Action:
             - ec2:AssociateAddress
             - ec2:Describe*
+            - ec2:ModifyNetworkInterfaceAttribute
+            Resource:
+            - "*"
+      - PolicyName: CreateRoute
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - ec2:CreateRoute
             Resource:
             - "*"
       - PolicyName: RevokeAuthorizeSG
@@ -199,6 +204,18 @@ Resources:
             - cloudwatch:PutMetricData
             Resource:
             - "*"
+
+  rtbPrivSubnet:
+    Type: AWS::EC2::RouteTable
+    Properties: 
+      Tags: 
+        - Key: Name
+          Value: rtb-cfn-squidProxy
+        - Key: Description
+          Value: Route Table created by CloudFormation
+        - Key: RouteTable4Squid
+          Value: true
+      VpcId: !Ref VpcId
 
   WhitelistedSitesSecret:
     Type: 'AWS::SecretsManager::Secret'
@@ -238,10 +255,6 @@ Resources:
         FromPort: 22
         ToPort: 22
         IpProtocol: tcp
-      - CidrIp: 82.217.184.82/32        #home ip
-        FromPort: 22
-        ToPort: 22
-        IpProtocol: tcp
 
   OutboundProxyASG:
     Type: AWS::AutoScaling::AutoScalingGroup
@@ -263,6 +276,9 @@ Resources:
       - Key: ApplicationID
         PropagateAtLaunch: 'true'
         Value: squid-proxy
+      - Key: squidVersion
+        PropagateAtLaunch: 'true'
+        Value: 3.5
     CreationPolicy:
       ResourceSignal:
         Timeout: PT15M
@@ -598,6 +614,12 @@ Resources:
           # bind the address 
           echo "binding EIP"
           aws ec2 associate-address --region ${AWS::Region} --instance-id $(curl -s http://169.254.169.254/latest/meta-data/instance-id) --allocation-id $freeEIP --allow-reassociation || error_exit 'Failed to Associate Elastic IP'
+          # disable src/dst check
+          aws ec2 modify-network-interface-attribute --network-interface-id $(aws ec2 describe-instances --filter Name=tag-key,Values=squidVersion --query 'Reservations[*].Instances[*].NetworkInterfaces[*].{ENid:NetworkInterfaceId}' --output text) --no-source-dest-check
+          # create default route to this instance
+          aws ec2 create-route \
+            --route-table-id $(aws ec2 describe-route-tables --filter Name=tag-key,Values=RouteTable4Squid --query 'RouteTables[*].RouteTableId' --output text) --destination-cidr-block 0.0.0.0/0 \
+            --network-interface-id $(aws ec2 describe-instances --filter Name=tag-key,Values=squidVersion --query 'Reservations[*].Instances[*].NetworkInterfaces[*].{ENid:NetworkInterfaceId}' --output text)
           # generate dummy certificate
           /usr/lib64/squid/ssl_crtd -c -s /var/lib/ssl_db
           chown -R squid.squid /var/lib/ssl_db
@@ -630,25 +652,6 @@ Resources:
     Properties:
       RetentionInDays: 30
       LogGroupName: !Sub "Proxy-${AWS::StackName}"
-
-  rtbPrivSubnet:
-    Type: AWS::EC2::RouteTable
-    Properties: 
-      Tags: 
-        - Key: Name
-          Value: rtb-cfn-squidProxy
-        - Key: Description
-          Value: Route Table created by CloudFormation
-      VpcId: !Ref VpcId
-
-  route1PrivSubnet:
-    Type: AWS::EC2::Route
-    Properties:
-       RouteTableId:
-         Ref: rtbPrivSubnet
-       DestinationCidrBlock: 0.0.0.0/0
-       GatewayId:
-         Ref: vpcInternetGW
 
   rtbSubnetAssociate:
     Type: AWS::EC2::SubnetRouteTableAssociation
