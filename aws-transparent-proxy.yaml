@@ -615,11 +615,13 @@ Resources:
           echo "binding EIP"
           aws ec2 associate-address --region ${AWS::Region} --instance-id $(curl -s http://169.254.169.254/latest/meta-data/instance-id) --allocation-id $freeEIP --allow-reassociation || error_exit 'Failed to Associate Elastic IP'
           # disable src/dst check
-          aws ec2 modify-network-interface-attribute --network-interface-id $(aws ec2 describe-instances --filter Name=tag-key,Values=squidVersion --query 'Reservations[*].Instances[*].NetworkInterfaces[*].{ENid:NetworkInterfaceId}' --output text) --no-source-dest-check
+          echo "Disabling source/destination check on instance"
+          elasticNI=$(aws ec2 describe-instances --filter Name=tag-key,Values=squidVersion --query 'Reservations[*].Instances[*].NetworkInterfaces[*].{ENid:NetworkInterfaceId}' --output text)
+          aws ec2 modify-network-interface-attribute --network-interface-id $elasticNI --no-source-dest-check
           # create default route to this instance
-          aws ec2 create-route \
-            --route-table-id $(aws ec2 describe-route-tables --filter Name=tag-key,Values=RouteTable4Squid --query 'RouteTables[*].RouteTableId' --output text) --destination-cidr-block 0.0.0.0/0 \
-            --network-interface-id $(aws ec2 describe-instances --filter Name=tag-key,Values=squidVersion --query 'Reservations[*].Instances[*].NetworkInterfaces[*].{ENid:NetworkInterfaceId}' --output text)
+          echo "Creating default route in route table"
+          routeTable=$(aws ec2 describe-route-tables --filter Name=tag-key,Values=RouteTable4Squid --query 'RouteTables[*].RouteTableId' --output text)
+          aws ec2 create-route --route-table-id $routeTable --destination-cidr-block 0.0.0.0/0 --network-interface-id $elasticNI
           # generate dummy certificate
           /usr/lib64/squid/ssl_crtd -c -s /var/lib/ssl_db
           chown -R squid.squid /var/lib/ssl_db
