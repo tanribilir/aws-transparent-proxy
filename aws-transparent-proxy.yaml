@@ -72,6 +72,11 @@ Parameters:
     Default: 10.33.33.0/24
     AllowedPattern: ^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\/(3[0-2]|[1-2][0-9]|[1-9]) # ^[.0-9]*\/([89]|[12][0-9]|3[0-2])$
 
+  RouteTableName:
+    Description: Name for the route table (if you run this template multiple times, please use different names in each run)
+    Type: String
+    Default: rtb-cfn-squidProxy
+  
   LatestAmiId:
     Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
     Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
@@ -210,7 +215,7 @@ Resources:
     Properties: 
       Tags: 
         - Key: Name
-          Value: rtb-cfn-squidProxy
+          Value: !Ref RouteTableName
         - Key: Description
           Value: Route Table created by CloudFormation
         - Key: RouteTable4Squid
@@ -605,7 +610,7 @@ Resources:
           # get the IP allocation id 
           EIPs=(${FixedEIPa.AllocationId})
           for i in ${!EIPs[@]}; do
-              out=$(aws ec2  describe-addresses --region ${AWS::Region} --allocation-ids $i) 
+              out=$(aws ec2 describe-addresses --region ${AWS::Region} --allocation-ids $i) 
               if [[ $out != *AssociationId* ]]; then 
                     freeEIP=$i
                     break
@@ -615,13 +620,15 @@ Resources:
           echo "binding EIP"
           aws ec2 associate-address --region ${AWS::Region} --instance-id $(curl -s http://169.254.169.254/latest/meta-data/instance-id) --allocation-id $freeEIP --allow-reassociation || error_exit 'Failed to Associate Elastic IP'
           # disable src/dst check
+          instanceId=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
           echo "Disabling source/destination check on instance"
-          elasticNI=$(aws ec2 describe-instances --filter Name=tag-key,Values=squidVersion --query 'Reservations[*].Instances[*].NetworkInterfaces[*].{ENid:NetworkInterfaceId}' --output text)
-          aws ec2 modify-network-interface-attribute --network-interface-id $elasticNI --no-source-dest-check
+          elasticNI=$(aws ec2 describe-instances --region ${AWS::Region} --instance-id $instanceId \
+              --query 'Reservations[*].Instances[*].NetworkInterfaces[*].{ENid:NetworkInterfaceId}' --output text)
+          aws ec2 modify-network-interface-attribute --region ${AWS::Region} --network-interface-id $elasticNI --no-source-dest-check
           # create default route to this instance
           echo "Creating default route in route table"
-          routeTable=$(aws ec2 describe-route-tables --filter Name=tag-key,Values=RouteTable4Squid --query 'RouteTables[*].RouteTableId' --output text)
-          aws ec2 create-route --route-table-id $routeTable --destination-cidr-block 0.0.0.0/0 --network-interface-id $elasticNI
+          routeTable=$(aws ec2 describe-route-tables --region ${AWS::Region} --filters Name=tag:Name,Values=${RouteTableName} --query 'RouteTables[*].RouteTableId' --output text)
+          aws ec2 create-route --route-table-id $routeTable --region ${AWS::Region} --destination-cidr-block 0.0.0.0/0 --network-interface-id $elasticNI
           # generate dummy certificate
           /usr/lib64/squid/ssl_crtd -c -s /var/lib/ssl_db
           chown -R squid.squid /var/lib/ssl_db
